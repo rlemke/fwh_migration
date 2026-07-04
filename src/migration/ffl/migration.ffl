@@ -1,0 +1,53 @@
+// Migration domain — World Bank net-migration world map over time.
+//
+// DownloadMigration caches the World Bank Net migration (SM.POP.NETM) + Total
+// population (SP.POP.TOTL) series for every country, 1960-2025, from the open
+// World Bank API. BuildMigrationMap joins them onto Natural Earth country
+// geometry, computes net migration per 1,000 population per year, and renders a
+// diverging MapLibre world choropleth with a YEAR SLIDER + play (green = net
+// immigration / a country gains people; red = net emigration / loses people).
+// Output -> cache/migration/output/index.html (MinIO on the fleet).
+
+namespace migration.sources {
+    /** Download World Bank net-migration + population for every country
+      * (1960-2025) and cache the per-country series. Open API, no token. */
+    event facet DownloadMigration(
+        force: Boolean = false
+    ) => (
+        country_count: Int
+    ) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+}
+
+namespace migration.maps {
+    /** Join the cached net-migration series onto Natural Earth country geometry,
+      * compute net migration per 1,000 population per year, and render the
+      * diverging year-slider world choropleth. ``dependency_signal`` sequences
+      * this strictly after the download. */
+    event facet BuildMigrationMap(
+        dependency_signal: Int = 0
+    ) => (
+        html_path: String,
+        geojson_path: String,
+        country_count: Int,
+        year_min: Int,
+        year_max: Int
+    ) with Effect(kind = "io") with Cost(tier = "cheap") with Timeout(minutes = 10)
+}
+
+namespace migration.workflows {
+    use migration.sources
+    use migration.maps
+
+    /** Build the World Bank net-migration world map (year slider 1960-2025). */
+    workflow BuildMigrationWorldMap(
+        force: Boolean = false
+    ) => (status: String, html_path: String, country_count: Int) andThen {
+        data = DownloadMigration(force = $.force)
+        map = BuildMigrationMap(dependency_signal = data.country_count)
+        yield BuildMigrationWorldMap(
+            status = "completed",
+            html_path = map.html_path,
+            country_count = map.country_count
+        )
+    }
+}
