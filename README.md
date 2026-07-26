@@ -12,6 +12,21 @@ migration count + rate that year and its by-decade history.
 
 **Live:** [rlemke.github.io/facetwork-maps/world/net-migration](https://rlemke.github.io/facetwork-maps/world/net-migration/)
 
+## Feature specifications
+
+Per-feature docs live in [`docs/`](docs/README.md) — one spec per feature, each
+covering how it works, data & fields, external libraries, facets/workflows, and
+cache/output.
+
+| Spec | What it covers |
+|------|----------------|
+| [docs/map-rendering.md](docs/map-rendering.md) | **Flagship.** ISO3 join onto Natural Earth geometry, per-year net-migration-per-1,000 rate, and the diverging year-slider + play MapLibre choropleth. |
+| [docs/data-sources.md](docs/data-sources.md) | World Bank `SM.POP.NETM` + `SP.POP.TOTL` download (keyless), reshape, and the cached `migration-series.json`. |
+| [docs/workflow.md](docs/workflow.md) | The `BuildMigrationWorldMap` entry-point workflow (download → build), domain discovery, and publishing. |
+| [docs/storage-and-cache.md](docs/storage-and-cache.md) | Backend-aware cache/output paths — local disk vs shared MinIO/S3. |
+
+See [`docs/README.md`](docs/README.md) for the full index.
+
 ## Data
 
 - **World Bank** — Net migration (`SM.POP.NETM`) + Total population
