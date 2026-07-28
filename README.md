@@ -12,6 +12,41 @@ migration count + rate that year and its by-decade history.
 
 **Live:** [rlemke.github.io/facetwork-maps/world/net-migration](https://rlemke.github.io/facetwork-maps/world/net-migration/)
 
+## FFL at a glance
+
+The domain is driven from [FFL](https://github.com/rlemke/facetwork/blob/main/docs/reference/language/grammar.md),
+Facetwork's workflow language — a step is `name = Facet(args)`, and later steps
+reference earlier ones by `step.field`:
+
+```ffl
+namespace my.migration {
+
+    use migration.sources
+    use migration.maps
+
+    /** Download the World Bank series, then render the world map. */
+    workflow MyMigrationMap() => (html_path: String, countries: Int) andThen {
+
+        data = migration.sources.DownloadMigration(force = false)
+
+        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count)
+
+        yield MyMigrationMap(html_path = map.html_path, countries = map.country_count)
+    }
+}
+```
+
+```bash
+fw ffl run --primary my.ffl \
+  --library src/migration/ffl/migration.ffl \
+  --workflow my.migration.MyMigrationMap
+```
+
+📖 **[docs/ffl-examples.md](docs/ffl-examples.md)** — the full example gallery:
+mixins (timeout/retry), `catch`, `when` branching, reusing the shipped workflow,
+and composing with other domains (e.g. publishing the map). Every snippet there is
+compile-checked.
+
 ## Feature specifications
 
 Per-feature docs live in [`docs/`](docs/README.md) — one spec per feature, each

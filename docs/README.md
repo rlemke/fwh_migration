@@ -26,6 +26,7 @@ the whole point of the domain).
 
 | Spec | What it covers |
 |------|----------------|
+| [ffl-examples.md](ffl-examples.md) | **Usage patterns.** A gallery of complete, compile-checked FFL examples against this domain's facets — the minimal workflow, call-time mixins, `catch`, `when`, reusing the shipped workflow, and cross-domain composition. |
 | [storage-and-cache.md](storage-and-cache.md) | Backend-aware paths (`storage.py`): local disk vs shared MinIO/S3, the `cache/migration/{cache,output}` roots, stage-local-finalize-on-close writes, and the env overrides. |
 
 ---
