@@ -43,7 +43,7 @@ namespace migration.workflows {
         force: Boolean = false
     ) => (status: String, html_path: String, country_count: Int) andThen {
         data = DownloadMigration(force = $.force)
-        map = BuildMigrationMap(dependency_signal = data.country_count)
+        map = BuildMigrationMap() after data
         yield BuildMigrationWorldMap(
             status = "completed",
             html_path = map.html_path,
