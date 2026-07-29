@@ -21,7 +21,7 @@ From the FFL `andThen` block:
 workflow BuildMigrationWorldMap(force: Boolean = false)
     => (status: String, html_path: String, country_count: Int) andThen {
     data = DownloadMigration(force = $.force)
-    map  = BuildMigrationMap(dependency_signal = data.country_count)
+    map  = BuildMigrationMap()
     yield BuildMigrationWorldMap(
         status = "completed",
         html_path = map.html_path,
@@ -32,11 +32,10 @@ workflow BuildMigrationWorldMap(force: Boolean = false)
 1. `data = DownloadMigration(force = $.force)` — fetch + cache the World Bank
    series (see [data-sources](data-sources.md)). `$.force` threads the workflow
    parameter through.
-2. `map = BuildMigrationMap(dependency_signal = data.country_count)` — the render
-   ([map-rendering](map-rendering.md)). Passing `data.country_count` as
-   `dependency_signal` creates the data dependency that forces step 2 to run
-   **after** step 1 completes (the value itself is unused by the render; it exists
-   purely to sequence).
+2. `map = BuildMigrationMap() after data` — the render
+   ([map-rendering](map-rendering.md)). The two steps exchange no value (the render
+   reads the cache the download wrote), so the compiler cannot infer the order; the
+   `after` clause states it, forcing step 2 to run only once step 1 completes.
 3. `yield BuildMigrationWorldMap(status="completed", html_path=map.html_path,
    country_count=map.country_count)` — the workflow's return surface.
 

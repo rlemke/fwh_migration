@@ -24,7 +24,7 @@ first — this page is the domain-specific companion to them.
 | Declaration | Signature | Does |
 |---|---|---|
 | `migration.sources.DownloadMigration` | `(force: Boolean = false) => (country_count: Int)` | World Bank `SM.POP.NETM` + `SP.POP.TOTL` for every country, 1960–2025 → cached series |
-| `migration.maps.BuildMigrationMap` | `(dependency_signal: Int = 0) => (html_path, geojson_path, country_count, year_min, year_max)` | Join onto Natural Earth geometry → per-1,000 rate → diverging year-slider choropleth |
+| `migration.maps.BuildMigrationMap` | `() => (html_path, geojson_path, country_count, year_min, year_max)` | Join onto Natural Earth geometry → per-1,000 rate → diverging year-slider choropleth |
 | `migration.workflows.BuildMigrationWorldMap` | `(force: Boolean = false) => (status, html_path, country_count)` | The shipped entry point: download → build |
 
 Both facets are `event facet`s — they run in a handler on a runner, not in the
@@ -70,7 +70,7 @@ namespace my.migration {
 
         data = migration.sources.DownloadMigration(force = false)
 
-        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count)
+        map = migration.maps.BuildMigrationMap() after data
 
         yield MyMigrationMap(html_path = map.html_path, countries = map.country_count)
     }
@@ -101,7 +101,7 @@ namespace my.migration {
 
         data = migration.sources.DownloadMigration(force = $.force)
 
-        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count)
+        map = migration.maps.BuildMigrationMap() after data
 
         yield RefreshMigrationMap(status = "completed", html_path = map.html_path)
     }
@@ -114,8 +114,8 @@ Run it with `--inputs '{"force": true}'`.
 
 `BuildMigrationMap` reads the *cache* the download wrote — it needs no value from
 it. But steps with no reference between them may run in any order (and in
-parallel). The `dependency_signal` idiom makes the dependency explicit: pass any
-field of the upstream step, and the runtime pins the order.
+parallel). The `after` clause makes the dependency explicit: name the upstream
+step, and the runtime pins the order.
 
 ```ffl
 namespace my.migration {
@@ -129,7 +129,7 @@ namespace my.migration {
         data = migration.sources.DownloadMigration()
 
         // referencing data.country_count is what makes this run second
-        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count)
+        map = migration.maps.BuildMigrationMap() after data
 
         yield OrderedBuild(html_path = map.html_path)
     }
@@ -153,7 +153,7 @@ namespace my.migration {
 
         data = migration.sources.DownloadMigration(force = true) with Timeout(minutes = 30) with Retry(maxAttempts = 3, backoffSeconds = 60)
 
-        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count) with Timeout(minutes = 15)
+        map = migration.maps.BuildMigrationMap() with Timeout(minutes = 15) after data
 
         yield ResilientMigrationMap(html_path = map.html_path)
     }
@@ -180,7 +180,7 @@ namespace my.migration {
             yield BestEffortMap(status = "download_failed", html_path = "")
         }
 
-        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count)
+        map = migration.maps.BuildMigrationMap() after data
 
         yield BestEffortMap(status = "completed", html_path = map.html_path)
     }
@@ -204,7 +204,7 @@ namespace my.migration {
 
         data = migration.sources.DownloadMigration() andThen when {
             case $.country_count >= $$.min_countries => {
-                map = migration.maps.BuildMigrationMap(dependency_signal = $.country_count)
+                map = migration.maps.BuildMigrationMap()
                 yield GuardedMap(status = "completed", html_path = map.html_path)
             }
             case _ => {
@@ -255,7 +255,7 @@ namespace my.migration {
 
         data = migration.sources.DownloadMigration()
 
-        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count)
+        map = migration.maps.BuildMigrationMap() after data
 
         published = census.Publish.PublishWebBundle(
             repo = $.repo,

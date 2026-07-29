@@ -83,7 +83,7 @@ Time is dominated by the (cached) geometry download, not compute.
 
 | Facet | Kind | Effect / Cost / Timeout | Purpose |
 |---|---|---|---|
-| `migration.maps.BuildMigrationMap(dependency_signal: Int = 0) => (html_path, geojson_path, country_count, year_min, year_max)` | event | `Effect(kind="io")` · `Cost(tier="cheap")` · `Timeout(minutes=10)` | Join the cached series onto Natural Earth geometry, compute net migration per 1,000 per year, and render the diverging year-slider choropleth. `dependency_signal` sequences it strictly after the download. |
+| `migration.maps.BuildMigrationMap() => (html_path, geojson_path, country_count, year_min, year_max)` | event | `Effect(kind="io")` · `Cost(tier="cheap")` · `Timeout(minutes=10)` | Join the cached series onto Natural Earth geometry, compute net migration per 1,000 per year, and render the diverging year-slider choropleth. Callers order it with `after` — it reads the download's cache and takes no value from it. |
 
 `handle_build_migration_map` calls `build_migration_map()` (note: it does **not**
 thread `force` through — the render always rebuilds from whatever series is cached)
@@ -119,10 +119,10 @@ and returns the five result fields.
 
 ## Gotchas & notes
 
-- **Ordering is enforced by data, not by the framework.** `BuildMigrationMap` reads
-  the cache directly; if run before `DownloadMigration` it raises. The workflow's
-  `dependency_signal = data.country_count` is the sequencing mechanism — do not call
-  the render facet standalone on an empty cache.
+- **The ordering is invisible to the compiler, so the workflow states it.**
+  `BuildMigrationMap` reads the cache directly; if run before `DownloadMigration` it
+  raises. Nothing flows between the two steps, so the workflow writes `after data` —
+  do not call the render facet standalone on an empty cache.
 - **`force` does not reach the render.** The handler ignores `force`, so re-running
   the workflow with `force=true` re-downloads the series but the geometry cache
   (`world-countries.geojson`) is only fetched if missing. Delete it to force fresh

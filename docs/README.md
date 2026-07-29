@@ -20,7 +20,7 @@ the whole point of the domain).
 |------|----------------|
 | [data-sources.md](data-sources.md) | **Ingest.** World Bank Net migration (`SM.POP.NETM`) + Total population (`SP.POP.TOTL`) — two keyless API calls, reshaped to `{iso3: {year: value}}` and cached as `migration-series.json`. |
 | [map-rendering.md](map-rendering.md) | **Flagship.** Join the series onto Natural Earth geometry by ISO3, compute net migration per 1,000, and render the diverging year-slider + play choropleth (`c_<year>`/`r_<year>` props, search box, decade-history popup, About modal). |
-| [workflow.md](workflow.md) | The single entry-point workflow `BuildMigrationWorldMap` (download → build, sequenced via `dependency_signal`), domain discovery, and the out-of-repo `PublishToSite` step. |
+| [workflow.md](workflow.md) | The single entry-point workflow `BuildMigrationWorldMap` (download → build, ordered with `after`), domain discovery, and the out-of-repo `PublishToSite` step. |
 
 ## Cross-cutting
 

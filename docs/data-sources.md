@@ -59,8 +59,8 @@ declares `DownloadMigration` as one event facet with no `foreach`.
 - The cached blob preserves the **raw year→value** maps for both `net` and `pop`
   per country; no rate is computed here (that happens at render time).
 - `DownloadMigration` returns only `country_count: Int` (the number of entities in
-  the net series) — used by the workflow as a `dependency_signal` to sequence the
-  render strictly after the download.
+  the net series). It is reported for visibility, not consumed: the render is
+  sequenced by the workflow's `after data` clause, not by any value.
 
 ## External libraries / binaries
 

@@ -29,7 +29,7 @@ namespace my.migration {
 
         data = migration.sources.DownloadMigration(force = false)
 
-        map = migration.maps.BuildMigrationMap(dependency_signal = data.country_count)
+        map = migration.maps.BuildMigrationMap() after data
 
         yield MyMigrationMap(html_path = map.html_path, countries = map.country_count)
     }
