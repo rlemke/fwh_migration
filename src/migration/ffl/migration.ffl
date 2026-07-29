@@ -21,11 +21,9 @@ namespace migration.sources {
 namespace migration.maps {
     /** Join the cached net-migration series onto Natural Earth country geometry,
       * compute net migration per 1,000 population per year, and render the
-      * diverging year-slider world choropleth. ``dependency_signal`` sequences
-      * this strictly after the download. */
-    event facet BuildMigrationMap(
-        dependency_signal: Int = 0
-    ) => (
+      * diverging year-slider world choropleth. Reads what the download cached,
+      * so callers must order it with ``after`` (no value flows between them). */
+    event facet BuildMigrationMap() => (
         html_path: String,
         geojson_path: String,
         country_count: Int,
