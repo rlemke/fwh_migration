@@ -109,3 +109,50 @@ def test_iso_alias_kosovo(local_storage, monkeypatch):
     assert res.country_count == 1
     fc = json.loads(open(_lib.cstore.localize(res.geojson_path)).read())
     assert fc["features"][0]["properties"]["c_2015"] == -20000
+
+
+# ---------------------------------------------------------------------------
+# Cache key: the parameters were recorded and never checked
+# ---------------------------------------------------------------------------
+
+def test_a_cache_built_for_different_parameters_is_not_reused(tmp_path, monkeypatch):
+    """The blob always recorded indicator/year_min/year_max and nothing compared
+    them, so widening the year range silently returned the old series under the
+    same filename. Written and ignored is the worst kind of key: it looks like
+    provenance and behaves like decoration."""
+    from datetime import UTC, datetime
+
+    from migration import _lib
+
+    fresh = datetime.now(UTC).isoformat()
+    same = {"indicator": _lib.NET_INDICATOR, "pop_indicator": _lib.POP_INDICATOR,
+            "year_min": _lib.YEAR_MIN, "year_max": _lib.YEAR_MAX, "fetched_at": fresh}
+    assert _lib._series_matches_request(same)
+
+    for changed in (
+        {**same, "year_max": _lib.YEAR_MAX - 5},      # narrower range
+        {**same, "indicator": "SOMETHING.ELSE"},      # different metric
+        {**same, "pop_indicator": "SOMETHING.ELSE"},  # different denominator
+    ):
+        assert not _lib._series_matches_request(changed)
+
+
+def test_a_cache_with_no_timestamp_is_treated_as_expired():
+    """Caches written before fetched_at existed must not be trusted forever.
+    One re-download, once, is the right price for not knowing its age."""
+    from migration import _lib
+
+    assert _lib._age_hours(None) is None
+    assert _lib._age_hours("not-a-date") is None
+
+
+def test_the_series_is_stamped_so_freshness_is_answerable():
+    """The World Bank revises these series on its own schedule. Without an
+    expiry the map is pinned to whenever it was first built, because the cached
+    file exists and nothing re-checks."""
+    from datetime import UTC, datetime
+
+    from migration import _lib
+
+    assert _lib.SERIES_MAX_AGE_HOURS > 0
+    assert _lib._age_hours(datetime.now(UTC).isoformat()) < 1.0

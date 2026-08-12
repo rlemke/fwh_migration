@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from html import escape
 
 from . import storage as cstore
@@ -36,6 +37,11 @@ logger = logging.getLogger("migration")
 WB_BASE = "https://api.worldbank.org/v2"
 NET_INDICATOR = "SM.POP.NETM"   # Net migration (immigrants - emigrants)
 POP_INDICATOR = "SP.POP.TOTL"   # Total population
+
+# The World Bank revises these series on its own schedule (a few times a year),
+# so the cache carries an expiry. Without one the map is pinned to whenever it
+# was first built — the cached file exists, so nothing ever re-checks.
+SERIES_MAX_AGE_HOURS = 24.0 * 30
 YEAR_MIN, YEAR_MAX = 1960, 2025
 WORLD_GEOJSON_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/"
@@ -99,13 +105,62 @@ def _fetch_indicator(indicator: str) -> dict[str, dict[str, float]]:
     return out
 
 
-def download_migration(*, force: bool = False) -> int:
-    """Fetch net-migration + population series and cache. Returns country count."""
-    cache_key = cstore.join(cstore.cache_root(), "migration-series.json")
+def _series_key() -> str:
+    return cstore.join(cstore.cache_root(), "migration-series.json")
+
+
+def _age_hours(iso: str | None) -> float | None:
+    if not iso:
+        return None
+    try:
+        stamp = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (datetime.now(UTC) - stamp).total_seconds() / 3600.0
+
+
+def _series_matches_request(blob: dict) -> bool:
+    """True when the cached series was built for the parameters in force now.
+
+    The blob has always RECORDED these — ``indicator``, ``year_min``,
+    ``year_max`` — and nothing ever compared them, so widening the year range or
+    switching indicator silently returned the old series under the same
+    filename. Written and ignored is the worst kind of key: it looks like
+    provenance and behaves like decoration.
+    """
+    return (
+        blob.get("indicator") == NET_INDICATOR
+        and blob.get("pop_indicator") == POP_INDICATOR
+        and blob.get("year_min") == YEAR_MIN
+        and blob.get("year_max") == YEAR_MAX
+    )
+
+
+def download_migration(
+    *, force: bool = False, max_age_hours: float = SERIES_MAX_AGE_HOURS
+) -> int:
+    """Fetch net-migration + population series and cache. Returns country count.
+
+    Reuses the cache only when it was built for the same indicators and year
+    range AND is younger than *max_age_hours*: the World Bank revises these
+    series on its own schedule, so a cache with no expiry would pin the map to
+    whenever it was first built.
+    """
+    cache_key = _series_key()
     if not force and cstore.exists(cache_key):
         with cstore.open_read(cache_key) as f:
             blob = json.load(f)
-        return len(blob.get("countries", {}))
+        age = _age_hours(blob.get("fetched_at"))
+        if not _series_matches_request(blob):
+            logger.info("migration cache rebuilt: indicators or year range changed")
+        elif age is None:
+            # Pre-dates the fetched_at field — treat as expired rather than
+            # trusting it forever. Costs one re-download, once.
+            logger.info("migration cache rebuilt: no fetched_at recorded")
+        elif age >= max_age_hours:
+            logger.info("migration cache rebuilt: %.0fh old", age)
+        else:
+            return len(blob.get("countries", {}))
 
     net = _fetch_indicator(NET_INDICATOR)
     names = dict(getattr(_fetch_indicator, "_names", {}))
@@ -118,7 +173,9 @@ def download_migration(*, force: bool = False) -> int:
             "net": series,
             "pop": pop.get(iso, {}),
         }
-    blob = {"indicator": NET_INDICATOR, "year_min": YEAR_MIN, "year_max": YEAR_MAX,
+    blob = {"indicator": NET_INDICATOR, "pop_indicator": POP_INDICATOR,
+            "year_min": YEAR_MIN, "year_max": YEAR_MAX,
+            "fetched_at": datetime.now(UTC).isoformat(),
             "countries": countries}
     with cstore.open_write(cache_key, "w") as f:
         json.dump(blob, f, separators=(",", ":"))
@@ -127,7 +184,7 @@ def download_migration(*, force: bool = False) -> int:
 
 
 def _load_series() -> dict:
-    cache_key = cstore.join(cstore.cache_root(), "migration-series.json")
+    cache_key = _series_key()
     if not cstore.exists(cache_key):
         raise RuntimeError("migration series not cached — run DownloadMigration first")
     with cstore.open_read(cache_key) as f:
