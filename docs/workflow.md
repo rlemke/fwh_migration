@@ -85,7 +85,7 @@ defined in this repo) → `rlemke.github.io/facetwork-maps/world/net-migration`.
   event handlers register from `handlers/`.
 - **Publishing is out-of-repo.** `PublishToSite` is not part of `fwh_migration`; a
   full "render + publish" run composes this workflow with the shared publish facet
-  (token-gated, server3-only in the fleet). This repo's workflow stops at producing
+  (token-gated: only the fleet host holding `GITHUB_TOKEN` can run it). This repo's workflow stops at producing
   `index.html`.
 - **`status` is not a health signal.** It is a literal `"completed"` in the yield;
   failures surface as step errors / raised exceptions in the handlers, not as a
